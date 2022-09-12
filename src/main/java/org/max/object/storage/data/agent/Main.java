@@ -11,6 +11,7 @@ import io.helidon.webserver.Routing;
 import io.helidon.webserver.WebServer;
 import java.util.logging.LogManager;
 import org.max.object.storage.data.agent.api.DataController;
+import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -91,7 +92,9 @@ public final class Main {
      * @return routing configured with JSON support, a health check, and a service
      */
     private static Routing createRouting(Config config) {
-        final DataController dataController = new DataController(config);
+
+        final BinaryDataStorageService storageService = new BinaryDataStorageService(config);
+        final DataController dataController = new DataController(storageService);
 
         final HealthSupport health = HealthSupport.builder()
             .addLiveness(HealthChecks.healthChecks()) // Adds a convenient set of checks

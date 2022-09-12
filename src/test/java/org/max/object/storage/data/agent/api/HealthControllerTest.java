@@ -6,8 +6,7 @@ import io.helidon.webclient.WebClient;
 import io.helidon.webclient.WebClientResponse;
 import io.helidon.webserver.WebServer;
 import java.util.concurrent.TimeUnit;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -45,7 +44,8 @@ public class HealthControllerTest {
                 .path("health")
                 .request()
                 .await();
-        assertThat(response.status().code(), is(200));
+
+        assertThat(response.status().code()).isEqualTo(200);
     }
 
 }

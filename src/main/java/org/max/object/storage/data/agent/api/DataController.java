@@ -1,17 +1,20 @@
 package org.max.object.storage.data.agent.api;
 
 import io.helidon.common.http.Http;
+import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
-import io.helidon.webserver.Handler;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Optional;
+import java.util.UUID;
+import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
 import org.max.object.storage.data.agent.domain.FileData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -19,14 +22,12 @@ import org.max.object.storage.data.agent.domain.FileData;
  */
 public class DataController implements Service {
 
-    private final Map<String, String> fileToData = new HashMap<>();
+    private static final Logger LOG = LoggerFactory.getLogger(DataController.class.getName());
 
-    private static final Logger LOGGER = Logger.getLogger(DataController.class.getName());
+    private final BinaryDataStorageService storageService;
 
-    private final String dataFolder;
-
-    public DataController(Config config) {
-        dataFolder = config.get("app.data.folder").asString().get();
+    public DataController(BinaryDataStorageService storageService) {
+        this.storageService = storageService;
     }
 
     /**
@@ -38,7 +39,6 @@ public class DataController implements Service {
     public void update(Routing.Rules rules) {
         rules
             .post("/file", this::uploadFile)
-            .put("/file/{id}", Handler.create(FileData.class, this::updateFile))
             .get("/file/{id}", this::getFileById);
     }
 
@@ -47,18 +47,23 @@ public class DataController implements Service {
      */
     private void getFileById(ServerRequest request, ServerResponse response) {
 
-        String id = request.path().param("id");
+        UUID id = UUID.fromString(request.path().param("id"));
 
-        FileData fileData = new FileData();
-        fileData.setId(id);
-        fileData.setData(fileToData.get(id));
+        Optional<byte[]> binaryData = storageService.getBinaryData(id);
 
-        response.send(fileData);
+        if (binaryData.isEmpty()) {
+            response.send(Http.Status.NOT_FOUND_404);
+            return;
+        }
+
+        response.addHeader("Content-Type", "application/octet-stream");
+
+        response.status(Http.Status.OK_200).send(binaryData.get());
     }
 
     private static <T> T processErrors(Throwable ex, ServerRequest request, ServerResponse response) {
+        LOG.error("Internal error", ex);
 
-        LOGGER.log(Level.FINE, "Internal error", ex);
         FileData jsonError = new FileData();
         jsonError.setData("Internal error");
         response.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(jsonError);
@@ -67,23 +72,22 @@ public class DataController implements Service {
     }
 
     /**
-     * Update file content by ID.
+     * Upload binary data
      */
-    private void updateFile(ServerRequest request, ServerResponse response, FileData fileData) {
-        if (fileData.getData() == null) {
-            FileData jsonError = new FileData();
-            jsonError.setData("No greeting provided");
-            response.status(Http.Status.BAD_REQUEST_400).send(jsonError);
-            return;
-        }
+    private void uploadFile(ServerRequest request, ServerResponse response) {
 
-        String id = request.path().param("id");
-        fileToData.put(id, fileData.getData());
+        Single<byte[]> body = request.content().as(byte[].class);
 
-        response.status(Http.Status.NO_CONTENT_204).send();
-    }
+        body.thenAccept(binaryData -> {
+            LOG.info("Saving binary data for with size {} bytes", binaryData.length);
 
-    private void uploadFile(ServerRequest request, ServerResponse response){
-        response.status(Http.Status.CREATED_201).send();
+            UUID generatedId = storageService.saveData(binaryData);
+
+            LOG.info("New data saved with UUID: {}", generatedId);
+
+            response.addHeader("Location", generatedId.toString()).
+                status(Http.Status.CREATED_201).
+                send();
+        });
     }
 }
