@@ -11,3 +11,6 @@ dependency-reduced-pom.xml
 
 # Docker envs
 docker/.env
+
+# curl traces
+trace-dump.txt

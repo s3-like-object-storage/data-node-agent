@@ -37,6 +37,7 @@ public class DataController implements Service {
     @Override
     public void update(Routing.Rules rules) {
         rules
+            .post("/file", this::uploadFile)
             .put("/file/{id}", Handler.create(FileData.class, this::updateFile))
             .get("/file/{id}", this::getFileById);
     }
@@ -80,5 +81,9 @@ public class DataController implements Service {
         fileToData.put(id, fileData.getData());
 
         response.status(Http.Status.NO_CONTENT_204).send();
+    }
+
+    private void uploadFile(ServerRequest request, ServerResponse response){
+        response.status(Http.Status.CREATED_201).send();
     }
 }

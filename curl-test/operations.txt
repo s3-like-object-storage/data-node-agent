@@ -1,0 +1,27 @@
+#
+# This file can be used for local e-2-e testing
+#
+####################################
+# Upload binary data
+####################################
+curl -v -H "Content-Type: application/octet-stream" --data-binary @file-data http://localhost:8080/data/file | jq
+
+# trace mode
+# curl -H "Content-Type: application/octet-stream" --trace-ascii trace-dump.txt --data-binary @file-data http://localhost:8080/data/file | jq
+
+####################################
+# GET binary data by ID
+####################################
+curl -v http://localhost:8080/data/file/133 | jq
+
+################
+# Perf testing
+################
+seq 1 1000 | xargs -n1 -P10 curl -v -X POST -H "Content-Type: application/json" --data @patient.json http://localhost:8080/data/file/13 | jq
+
+####################################
+# Health & metrics
+####################################
+curl -v -X GET -H "Accept: application/json" http://localhost:8081/health | jq
+
+curl -v -X GET -H "Accept: application/json" http://localhost:8082/metrics | jq
