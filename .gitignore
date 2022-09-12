@@ -1,0 +1,13 @@
+# Intellij IDEA files
+.idea/
+*.iml
+
+# Maven target folder & reduced pom
+target/
+dependency-reduced-pom.xml
+
+# MacOS specific files
+.DS_Store
+
+# Docker envs
+docker/.env

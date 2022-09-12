@@ -1,0 +1,10 @@
+server:
+  port: 8080
+  host: 0.0.0.0
+
+app:
+  data.folder: "/Users/mstepan/repo/object-storage/data"
+
+security:
+  enabled: false
+
