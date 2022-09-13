@@ -18,43 +18,48 @@ public class FileDataDataStorageService implements BinaryDataStorageService {
 
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private final RandomAccessFile appendBaseFile;
+    private final File appendFileName;
+    private final RandomAccessFile appendFile;
 
-    private long offset;
+    private long appendOffset;
 
     private final Map<UUID, BinaryDataDetails> binaryDetailsById = new HashMap<>();
 
     public FileDataDataStorageService(Config config) {
         String dataFolder = config.get("binary.storage.folder").asString().get();
 
-        final File appendFile = Path.of(dataFolder, "file1").toFile();
+        // TODO: right now we just generate new file for each run
+        appendFileName = Path.of(dataFolder, "file-" + UUID.randomUUID()).toFile();
 
         try {
-            appendBaseFile = new RandomAccessFile(appendFile, "rwd");
+            appendFile = new RandomAccessFile(appendFileName, "rw");
         }
         catch (Exception ex) {
-            throw new ExceptionInInitializerError("Can't open file " + appendFile + "for rw");
+            throw new ExceptionInInitializerError("Can't open append file " + appendFileName + " for 'rwd'");
         }
     }
 
 
     @Override
     public UUID saveData(byte[] binaryData) {
-        UUID id = UUID.randomUUID();
+        final UUID id = UUID.randomUUID();
 
         try {
-            appendBaseFile.seek(offset);
-            appendBaseFile.write(binaryData);
+            appendFile.seek(appendOffset);
+            appendFile.write(binaryData);
+            // IMPORTANT: use sync() here to flush all in-memory buffers inside OS kernel
+            // https://stackoverflow.com/questions/7550190/how-do-i-flush-a-randomaccessfile-java
+            appendFile.getFD().sync();
 
-            binaryDetailsById.put(id, new BinaryDataDetails(offset, binaryData.length));
+            binaryDetailsById.put(id, new BinaryDataDetails(appendFileName.toString(), appendOffset, binaryData.length));
 
-            offset += binaryData.length;
+            appendOffset += binaryData.length;
         }
         catch (IOException ioEx) {
             throw new IllegalStateException(ioEx);
         }
 
-        LOG.info("Binary data {} bytes save with ID {}", binaryData.length, id);
+        LOG.info("ID: {}, size: {} bytes, append file: {}", id, binaryData.length, appendFileName.getAbsolutePath());
 
         return id;
     }
@@ -68,10 +73,12 @@ public class FileDataDataStorageService implements BinaryDataStorageService {
         }
 
         try {
-            byte[] buf = new byte[details.size];
-            appendBaseFile.seek(details.offset);
-            appendBaseFile.read(buf);
-            return Optional.of(buf);
+            try (RandomAccessFile readFile = new RandomAccessFile(details.fileName, "r")) {
+                byte[] buf = new byte[details.size];
+                readFile.seek(details.offset);
+                readFile.read(buf);
+                return Optional.of(buf);
+            }
         }
         catch (IOException ioEx) {
             throw new IllegalStateException(ioEx);
@@ -79,10 +86,14 @@ public class FileDataDataStorageService implements BinaryDataStorageService {
     }
 
     private static final class BinaryDataDetails {
+
+        final String fileName;
+
         final long offset;
         final int size;
 
-        BinaryDataDetails(long offset, int size) {
+        public BinaryDataDetails(String fileName, long offset, int size) {
+            this.fileName = fileName;
             this.offset = offset;
             this.size = size;
         }
