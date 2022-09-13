@@ -25,6 +25,10 @@ Maven wrapper with maven 3.6.3 was installed with:
 mvn -N wrapper:wrapper -Dmaven=3.6.3
 ```
 
+## Useful Helidon SE links
+
+[Helidon SE and DBClient usage](https://hantsy.medium.com/accessing-database-with-helidon-db-client-87aedacaaf43)
+
 ## Build and run
 
 ```bash

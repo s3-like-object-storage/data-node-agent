@@ -9,7 +9,7 @@ import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class InMemoryDataDataStorageService implements BinaryDataStorageService {
+public class InMemoryBinaryDataStorageService implements BinaryDataStorageService {
 
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 

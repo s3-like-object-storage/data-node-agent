@@ -3,12 +3,14 @@ package org.max.object.storage.data.agent;
 
 import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
+import io.helidon.dbclient.DbClient;
 import io.helidon.health.HealthSupport;
 import io.helidon.health.checks.HealthChecks;
 import io.helidon.media.jackson.JacksonSupport;
 import io.helidon.metrics.MetricsSupport;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.WebServer;
+import io.helidon.webserver.accesslog.AccessLogSupport;
 import java.lang.invoke.MethodHandles;
 import java.util.logging.LogManager;
 import org.max.object.storage.data.agent.api.DataController;
@@ -93,7 +95,11 @@ public final class Main {
      */
     private static Routing createRouting(Config config) {
 
-        final BinaryDataStorageService storageService = DataStorageServiceFactory.newInstance(config);
+        final DbClient dbClient = createDbClient(config);
+
+        initDB(dbClient);
+
+        final BinaryDataStorageService storageService = DataStorageServiceFactory.newInstance(dbClient, config);
 
         final DataController dataController = new DataController(storageService);
 
@@ -101,10 +107,53 @@ public final class Main {
             HealthSupport.builder().addLiveness(HealthChecks.healthChecks()) // Adds a convenient set of checks
                 .build();
 
-        final Routing.Builder builder = Routing.builder().register(MetricsSupport.create()) // Metrics at "/metrics"
-            .register(health) // Health at "/health"
-            .register("/data", dataController);
+        final MetricsSupport metrics = MetricsSupport.create();
+
+        final AccessLogSupport accessLog = AccessLogSupport.create(config.get("server.access-log"));
+
+        final Routing.Builder builder = Routing.builder().
+            register(metrics). // Metrics at "/metrics"
+                register(health). // Health at "/health"
+                register(accessLog).
+            register("/data", dataController);
 
         return builder.build();
     }
+
+    private static DbClient createDbClient(Config config) {
+        Config dbConfig = config.get("db");
+        return DbClient.builder(dbConfig).build();
+    }
+
+    // INSERT INTO object_mapping (id, file_name, offset, size)
+    public static void initDB(DbClient dbClient) {
+
+        dbClient.inTransaction(
+                tx -> tx.createDmlStatement("CREATE TABLE IF NOT EXISTS object_mapping(id CHAR(36) PRIMARY KEY, file_name VARCHAR(64), " +
+                                                "offset INTEGER, size INTEGER)").execute()).
+            thenAccept(t -> {
+                LOG.info("DB created properly");
+            }).
+            exceptionallyAccept(ex -> LOG.error("Can't create DB", ex));
+
+
+
+
+//        dbClient.inTransaction(
+//            tx -> tx.createDelete("DELETE FROM comments").execute()
+//                .thenAccept(
+//                    count -> LOG.info("{} comments deleted.", count)
+//                )
+//                .thenCompose(
+//                    v -> tx.createDelete("DELETE FROM posts").execute()
+//                        .thenAccept(count2 -> LOG.info("{} posts deleted.", count2))
+//                )
+//                .exceptionally(throwable -> {
+//                    LOG.error("Failed to initialize data", throwable);
+//                    return null;
+//                })
+//        );
+    }
+
+
 }

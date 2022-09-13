@@ -16,8 +16,8 @@ curl -v -H "Content-Type: application/octet-stream" --data-binary @file-data2 ht
 ####################################
 # GET binary data by ID
 ####################################
-curl -v http://localhost:8080/data/f00165b1-ce80-4eec-849b-25a2f9e066b0
-curl -v http://localhost:8080/data/8c915bf0-54b1-4ab6-955f-d93fe5b5bcf1
+curl -v http://localhost:8080/data/a59d3212-e3dc-40f5-a502-b9378e6e9137
+curl -v http://localhost:8080/data/77c69ee9-24dc-4bc7-812f-99e5be8dc286
 
 
 ####################################

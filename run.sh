@@ -11,5 +11,6 @@
 # Print JVM memory details when process exit
 #export NATIVE_MEMORY_TRACKER="-XX:+UnlockDiagnosticVMOptions -XX:NativeMemoryTracking=summary -XX:+PrintNMTStatistics"
 
-
+rm -rf data/* || exit 1
+rm -rf db/data-storage.db || exit 1
 java ${REMOTE_DEBUGGER} ${JAVA_OPTS} ${NATIVE_MEMORY_TRACKER} -jar target/data-node-agent.jar

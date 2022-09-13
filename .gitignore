@@ -17,3 +17,6 @@ trace-dump.txt
 
 # binary data folder to test purpose
 data/*
+
+# ignore all local SQLite files
+db/*
