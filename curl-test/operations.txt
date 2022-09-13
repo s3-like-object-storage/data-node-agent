@@ -4,16 +4,21 @@
 ####################################
 # Upload binary data
 ####################################
-curl -v -H "Content-Type: application/octet-stream" --data-binary @file-data http://localhost:8080/data/file | jq
-<== Location: 983c18a5-5c0c-42ca-98a6-635f83329552
+curl -v -H "Content-Type: application/octet-stream" --data-binary @file-data1 http://localhost:8080/data | jq
+<==  Location: data/543daa41-38e8-4797-a36c-e786cac92f64
+
+curl -v -H "Content-Type: application/octet-stream" --data-binary @file-data2 http://localhost:8080/data | jq
+<== Location: data/c91e888f-420e-48af-b160-34d5438f0f36
 
 # trace mode
-# curl -H "Content-Type: application/octet-stream" --trace-ascii trace-dump.txt --data-binary @file-data http://localhost:8080/data/file | jq
+# curl -H "Content-Type: application/octet-stream" --trace-ascii trace-dump.txt --data-binary @file-data http://localhost:8080/data | jq
 
 ####################################
 # GET binary data by ID
 ####################################
-curl -v http://localhost:8080/data/file/4110321b-9b45-4713-8f87-1ed65f260cae
+curl -v http://localhost:8080/data/543daa41-38e8-4797-a36c-e786cac92f64
+curl -v http://localhost:8080/data/c91e888f-420e-48af-b160-34d5438f0f36
+
 
 ####################################
 # Health & metrics

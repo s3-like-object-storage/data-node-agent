@@ -1,0 +1,2 @@
+Note: Currently Helidon only supports JSON-P for transforming JSON data automatically. As you see in the above
+codes, you have to convert your data into a JSON-P specific JsonObject or JsonArray.

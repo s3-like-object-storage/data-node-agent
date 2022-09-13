@@ -14,3 +14,6 @@ docker/.env
 
 # curl traces
 trace-dump.txt
+
+# binary data folder to test purpose
+data/*

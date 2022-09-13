@@ -1,0 +1,4 @@
+Since RandomAccessFile treats the file as a byte array, write operation can override the data as well as it
+can append to a file. It all depends on the file pointer position. If the pointer is moved beyond the file length and
+then write operation is called, then there will be junk data written in the file. So you should take care of this while
+using write operation.

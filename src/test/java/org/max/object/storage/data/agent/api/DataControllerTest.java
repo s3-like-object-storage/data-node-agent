@@ -43,17 +43,17 @@ public class DataControllerTest {
     public void uploadFile() {
 
         WebClientResponse response = webClient.post()
-            .path("/data/file")
+            .path("/data")
             .submit("hello binary data".getBytes(StandardCharsets.UTF_8))
             .await();
 
         assertThat(response.status().code()).isEqualTo(201);
         assertThat(response.headers().value("Location")).isNotEmpty();
 
-        String fileIdStr = response.headers().value("Location").get();
+        String binaryDataLocation = response.headers().value("Location").get();
 
         byte[] fileData = webClient.get()
-            .path("/data/file/" + fileIdStr)
+            .path(binaryDataLocation)
             .request(byte[].class)
             .await();
 

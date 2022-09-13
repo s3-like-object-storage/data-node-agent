@@ -9,9 +9,11 @@ import io.helidon.media.jackson.JacksonSupport;
 import io.helidon.metrics.MetricsSupport;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.WebServer;
+import java.lang.invoke.MethodHandles;
 import java.util.logging.LogManager;
 import org.max.object.storage.data.agent.api.DataController;
 import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
+import org.max.object.storage.data.agent.storage.DataStorageServiceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -22,7 +24,7 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
  */
 public final class Main {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DataController.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     /**
      * Cannot be instantiated.
@@ -41,7 +43,8 @@ public final class Main {
 
     /**
      * Install sl4j and logback, instead of of JUL.
-     * See <a href="https://www.borischistov.com/articles/6">Helidon. Part 1: Creating simple web service and configuring logging</a>
+     * See
+     * <a href="https://www.borischistov.com/articles/6">Helidon. Part 1: Creating simple web service and configuring logging</a>
      */
     private static void installLogbackLogger() {
         LogManager.getLogManager().reset();
@@ -59,29 +62,26 @@ public final class Main {
         // By default this will pick up application.yaml from the classpath
         Config config = Config.create();
 
-        WebServer server = WebServer.builder(createRouting(config))
-            .config(config.get("server"))
-            .addMediaSupport(JacksonSupport.create())
-            .build();
+        WebServer server =
+            WebServer.builder(createRouting(config)).config(config.get("server")).addMediaSupport(JacksonSupport.create())
+                .build();
 
         Single<WebServer> webserver = server.start();
 
         // Try to start the server. If successful, print some info and arrange to
         // print a message at shutdown. If unsuccessful, print the exception.
         webserver.thenAccept(ws -> {
-                LOG.info("WEB server is up and running at {}", serverUrl(ws));
-                ws.whenShutdown().thenRun(() -> LOG.info("WEB server is DOWN."));
-            })
-            .exceptionallyAccept(ex -> {
-                LOG.error("Startup failed: " + ex.getMessage(), ex);
-            });
+            LOG.info("WEB server is up and running at {}", serverUrl(ws));
+            ws.whenShutdown().thenRun(() -> LOG.info("WEB server is DOWN."));
+        }).exceptionallyAccept(ex -> {
+            LOG.error("Startup failed: " + ex.getMessage(), ex);
+        });
 
         return webserver;
     }
 
     private static String serverUrl(WebServer ws) {
-        return String.format("%s://%s:%d", (ws.hasTls() ? "https" : "http"),
-                             ws.configuration().bindAddress().getHostName(),
+        return String.format("%s://%s:%d", (ws.hasTls() ? "https" : "http"), ws.configuration().bindAddress().getHostName(),
                              ws.port());
     }
 
@@ -93,15 +93,15 @@ public final class Main {
      */
     private static Routing createRouting(Config config) {
 
-        final BinaryDataStorageService storageService = new BinaryDataStorageService(config);
+        final BinaryDataStorageService storageService = DataStorageServiceFactory.newInstance(config);
+
         final DataController dataController = new DataController(storageService);
 
-        final HealthSupport health = HealthSupport.builder()
-            .addLiveness(HealthChecks.healthChecks()) // Adds a convenient set of checks
-            .build();
+        final HealthSupport health =
+            HealthSupport.builder().addLiveness(HealthChecks.healthChecks()) // Adds a convenient set of checks
+                .build();
 
-        final Routing.Builder builder = Routing.builder()
-            .register(MetricsSupport.create()) // Metrics at "/metrics"
+        final Routing.Builder builder = Routing.builder().register(MetricsSupport.create()) // Metrics at "/metrics"
             .register(health) // Health at "/health"
             .register("/data", dataController);
 

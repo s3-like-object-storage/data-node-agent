@@ -2,9 +2,10 @@ server:
   port: 8080
   host: 0.0.0.0
 
-
-app:
-  data.folder: "/Users/mstepan/repo/object-storage/data"
+binary:
+  storage:
+    type: "FILE"
+    folder: "/Users/mstepan/repo/s3-like-object-storage/data-node-agent/data"
 
 
 
