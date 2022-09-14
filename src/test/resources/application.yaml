@@ -12,7 +12,7 @@ binary:
 db:
   source: "jdbc"
   connection:
-    url: "jdbc:sqlite:db/test-data-storage.db"
+    url: "jdbc:sqlite::memory:"
 
 security:
   enabled: false
