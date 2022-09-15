@@ -45,38 +45,35 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
         }
     }
 
-
     @Override
     public CompletionStage<UUID> saveData(byte[] binaryData) {
-        final UUID id = UUID.randomUUID();
-
-        try {
-            appendFile.seek(appendOffset);
-            appendFile.write(binaryData);
-            // IMPORTANT: use sync() here to flush all in-memory buffers inside OS kernel
-            // https://stackoverflow.com/questions/7550190/how-do-i-flush-a-randomaccessfile-java
-            appendFile.getFD().sync();
-
-            return insertDbMapping(new BinaryDataDetails(id, appendFileName.toString(), appendOffset, binaryData.length)).
-                thenApply( uuidFromDb -> {
-                    appendOffset += binaryData.length;
-                    LOG.info("ID: {}, size: {} bytes, append file: {}", id, binaryData.length, appendFileName.getAbsolutePath());
-                    return uuidFromDb;
-                });
-        }
-        catch (Exception ex) {
-            throw new IllegalStateException(ex);
-        }
+        return CompletableFuture.completedFuture(UUID.randomUUID()).
+            thenApply(id -> {
+                try {
+                    appendFile.seek(appendOffset);
+                    appendFile.write(binaryData);
+                    // IMPORTANT: use sync() here to flush all in-memory buffers inside OS kernel
+                    // https://stackoverflow.com/questions/7550190/how-do-i-flush-a-randomaccessfile-java
+                    appendFile.getFD().sync();
+                    return id;
+                }
+                catch (Exception ex) {
+                    throw new IllegalStateException(ex);
+                }
+            }).
+            thenCompose( id -> dao.insertDbMapping(new BinaryDataDetails(id, appendFileName.toString(), appendOffset, binaryData.length))).
+            thenApply(uuidFromDb -> {
+                appendOffset += binaryData.length;
+                LOG.info("ID: {}, size: {} bytes, append file: {}", uuidFromDb, binaryData.length, appendFileName.getAbsolutePath());
+                return uuidFromDb;
+            });
     }
 
     @Override
     public CompletionStage<Optional<byte[]>> getBinaryData(UUID id) {
-
-        LOG.info("getBinaryData call");
-
         try {
             //TODO: blocking wait here, bad practice !!!
-            BinaryDataDetails details = getMappingById(id).toCompletableFuture().get();
+            BinaryDataDetails details = dao.getMappingById(id).toCompletableFuture().get();
             if (details == null) {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
@@ -98,14 +95,4 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
             return CompletableFuture.completedFuture(Optional.empty());
         }
     }
-
-    private CompletionStage<UUID> insertDbMapping(BinaryDataDetails dataDetails) {
-        return dao.insertDbMapping(dataDetails);
-    }
-
-
-    private CompletionStage<BinaryDataDetails> getMappingById(UUID id) {
-        return dao.getMappingById(id);
-    }
-
 }
