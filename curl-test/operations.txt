@@ -5,10 +5,10 @@
 # Upload binary data
 ####################################
 curl -v -H "Content-Type: application/octet-stream" --data-binary @file-data1 http://localhost:8080/data | jq
-<==  Location: data/f00165b1-ce80-4eec-849b-25a2f9e066b0
+<==  Location: data/93436de3-7e1d-431e-99ad-cfbe26fc3a05
 
 curl -v -H "Content-Type: application/octet-stream" --data-binary @file-data2 http://localhost:8080/data | jq
-<== data/8c915bf0-54b1-4ab6-955f-d93fe5b5bcf1
+<==  data/e2af3ae1-5ef5-4b7b-abdc-aed5de15aba8
 
 # trace mode
 # curl -H "Content-Type: application/octet-stream" --trace-ascii trace-dump.txt --data-binary @file-data http://localhost:8080/data | jq
@@ -16,8 +16,14 @@ curl -v -H "Content-Type: application/octet-stream" --data-binary @file-data2 ht
 ####################################
 # GET binary data by ID
 ####################################
-curl -v http://localhost:8080/data/57392a22-3da2-4d9b-a848-30be5379149a
-curl -v http://localhost:8080/data/f0f2add9-9931-40ec-b3fd-ca14abbe1684
+curl -v http://localhost:8080/data/93436de3-7e1d-431e-99ad-cfbe26fc3a05
+curl -v http://localhost:8080/data/e2af3ae1-5ef5-4b7b-abdc-aed5de15aba8
+
+
+################
+# Perf testing
+################
+seq 1 30 | xargs -n1 -P10 curl -v http://localhost:8080/data/11c7ca97-d9b9-4ec5-be0e-290da88c0d9d
 
 
 ####################################

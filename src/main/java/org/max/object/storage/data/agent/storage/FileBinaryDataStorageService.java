@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,10 +58,10 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
             appendFile.getFD().sync();
 
             return insertDbMapping(new BinaryDataDetails(id, appendFileName.toString(), appendOffset, binaryData.length)).
-                thenApply(nothing -> appendOffset += binaryData.length).
-                thenApply( ttt -> {
+                thenApply( uuidFromDb -> {
+                    appendOffset += binaryData.length;
                     LOG.info("ID: {}, size: {} bytes, append file: {}", id, binaryData.length, appendFileName.getAbsolutePath());
-                    return id;
+                    return uuidFromDb;
                 });
         }
         catch (Exception ex) {
@@ -70,7 +71,11 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
 
     @Override
     public CompletionStage<Optional<byte[]>> getBinaryData(UUID id) {
+
+        LOG.info("getBinaryData call");
+
         try {
+            //TODO: blocking wait here, bad practice !!!
             BinaryDataDetails details = getMappingById(id).toCompletableFuture().get();
             if (details == null) {
                 return CompletableFuture.completedFuture(Optional.empty());
@@ -94,7 +99,7 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
         }
     }
 
-    private CompletionStage<Void> insertDbMapping(BinaryDataDetails dataDetails) {
+    private CompletionStage<UUID> insertDbMapping(BinaryDataDetails dataDetails) {
         return dao.insertDbMapping(dataDetails);
     }
 

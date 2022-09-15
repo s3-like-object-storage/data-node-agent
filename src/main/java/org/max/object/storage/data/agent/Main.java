@@ -102,7 +102,7 @@ public final class Main {
         final DbClient dbClient = createDbClient(config);
         final ObjectMappingDao objectMappingDao = new ObjectMappingDao(dbClient);
 
-        initDB(dbClient);
+        initDBAndWait(dbClient);
 
         // Services
         final BinaryDataStorageService storageService = DataStorageServiceFactory.newInstance(objectMappingDao, config);
@@ -133,8 +133,7 @@ public final class Main {
         return DbClient.builder(dbConfig).build();
     }
 
-    // INSERT INTO object_mapping (id, file_name, offset, size)
-    public static void initDB(DbClient dbClient) {
+    public static void initDBAndWait(DbClient dbClient) {
         CompletionStage<Void> completionStage = dbClient.inTransaction(
                 tx -> tx.createDmlStatement("CREATE TABLE IF NOT EXISTS object_mapping(id CHAR(36) PRIMARY KEY, file_name VARCHAR(64), " +
                                                 "offset INTEGER, size INTEGER)").execute()).
