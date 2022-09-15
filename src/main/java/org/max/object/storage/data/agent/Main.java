@@ -12,10 +12,13 @@ import io.helidon.webserver.Routing;
 import io.helidon.webserver.WebServer;
 import io.helidon.webserver.accesslog.AccessLogSupport;
 import java.lang.invoke.MethodHandles;
+import java.util.concurrent.CompletionStage;
 import java.util.logging.LogManager;
 import org.max.object.storage.data.agent.api.DataController;
 import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
 import org.max.object.storage.data.agent.storage.DataStorageServiceFactory;
+import org.max.object.storage.data.agent.storage.ObjectMappingDao;
+import org.max.object.storage.data.agent.util.ReactiveUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -95,12 +98,16 @@ public final class Main {
      */
     private static Routing createRouting(Config config) {
 
+        // DB layer
         final DbClient dbClient = createDbClient(config);
+        final ObjectMappingDao objectMappingDao = new ObjectMappingDao(dbClient);
 
         initDB(dbClient);
 
-        final BinaryDataStorageService storageService = DataStorageServiceFactory.newInstance(dbClient, config);
+        // Services
+        final BinaryDataStorageService storageService = DataStorageServiceFactory.newInstance(objectMappingDao, config);
 
+        // Controllers
         final DataController dataController = new DataController(storageService);
 
         final HealthSupport health =
@@ -109,6 +116,7 @@ public final class Main {
 
         final MetricsSupport metrics = MetricsSupport.create();
 
+        // Utility like
         final AccessLogSupport accessLog = AccessLogSupport.create(config.get("server.access-log"));
 
         final Routing.Builder builder = Routing.builder().
@@ -127,8 +135,7 @@ public final class Main {
 
     // INSERT INTO object_mapping (id, file_name, offset, size)
     public static void initDB(DbClient dbClient) {
-
-        dbClient.inTransaction(
+        CompletionStage<Void> completionStage = dbClient.inTransaction(
                 tx -> tx.createDmlStatement("CREATE TABLE IF NOT EXISTS object_mapping(id CHAR(36) PRIMARY KEY, file_name VARCHAR(64), " +
                                                 "offset INTEGER, size INTEGER)").execute()).
             thenAccept(t -> {
@@ -136,23 +143,8 @@ public final class Main {
             }).
             exceptionallyAccept(ex -> LOG.error("Can't create DB", ex));
 
+        ReactiveUtils.waitForStageCompletion(completionStage);
 
-
-
-//        dbClient.inTransaction(
-//            tx -> tx.createDelete("DELETE FROM comments").execute()
-//                .thenAccept(
-//                    count -> LOG.info("{} comments deleted.", count)
-//                )
-//                .thenCompose(
-//                    v -> tx.createDelete("DELETE FROM posts").execute()
-//                        .thenAccept(count2 -> LOG.info("{} posts deleted.", count2))
-//                )
-//                .exceptionally(throwable -> {
-//                    LOG.error("Failed to initialize data", throwable);
-//                    return null;
-//                })
-//        );
     }
 
 

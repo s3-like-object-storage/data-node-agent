@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
 import org.slf4j.Logger;
@@ -24,11 +25,11 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
 
     private long appendOffset;
 
-    private final DbClient dbClient;
+    private final ObjectMappingDao dao;
 
-    public FileBinaryDataStorageService(DbClient dbClient, Config config) {
+    public FileBinaryDataStorageService(ObjectMappingDao dao, Config config) {
 
-        this.dbClient = dbClient;
+        this.dao = dao;
 
         String dataFolder = Objects.requireNonNull(config.get("binary.storage.folder").asString().get(), "NULL data folder");
 
@@ -45,7 +46,7 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
 
 
     @Override
-    public UUID saveData(byte[] binaryData) {
+    public CompletionStage<UUID> saveData(byte[] binaryData) {
         final UUID id = UUID.randomUUID();
 
         try {
@@ -55,25 +56,24 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
             // https://stackoverflow.com/questions/7550190/how-do-i-flush-a-randomaccessfile-java
             appendFile.getFD().sync();
 
-            insertDbMapping(new BinaryDataDetails(id, appendFileName.toString(), appendOffset, binaryData.length));
-
-            appendOffset += binaryData.length;
+            return insertDbMapping(new BinaryDataDetails(id, appendFileName.toString(), appendOffset, binaryData.length)).
+                thenApply(nothing -> appendOffset += binaryData.length).
+                thenApply( ttt -> {
+                    LOG.info("ID: {}, size: {} bytes, append file: {}", id, binaryData.length, appendFileName.getAbsolutePath());
+                    return id;
+                });
         }
-        catch (IOException ioEx) {
-            throw new IllegalStateException(ioEx);
+        catch (Exception ex) {
+            throw new IllegalStateException(ex);
         }
-
-        LOG.info("ID: {}, size: {} bytes, append file: {}", id, binaryData.length, appendFileName.getAbsolutePath());
-
-        return id;
     }
 
     @Override
-    public Optional<byte[]> getBinaryData(UUID id) {
+    public CompletionStage<Optional<byte[]>> getBinaryData(UUID id) {
         try {
             BinaryDataDetails details = getMappingById(id).toCompletableFuture().get();
             if (details == null) {
-                return Optional.empty();
+                return CompletableFuture.completedFuture(Optional.empty());
             }
 
             try {
@@ -81,7 +81,7 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
                     byte[] buf = new byte[details.size];
                     readFile.seek(details.offset);
                     readFile.read(buf);
-                    return Optional.of(buf);
+                    return CompletableFuture.completedFuture(Optional.of(buf));
                 }
             }
             catch (IOException ioEx) {
@@ -90,46 +90,17 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
         }
         catch (Exception ex) {
             LOG.error(ex.getMessage(), ex);
-            return Optional.empty();
+            return CompletableFuture.completedFuture(Optional.empty());
         }
     }
 
-    private void insertDbMapping(BinaryDataDetails dataDetails) {
-        dbClient.execute(exec ->
-                             exec.insert("INSERT INTO object_mapping (id, file_name, offset, size) VALUES(?, ?, ?, ?)",
-                                         dataDetails.id.toString(), dataDetails.fileName, dataDetails.offset, dataDetails.size)).
-            thenAccept(notUsedCount -> LOG.info("object_mapping inserted for ID {}", dataDetails.id));
+    private CompletionStage<Void> insertDbMapping(BinaryDataDetails dataDetails) {
+        return dao.insertDbMapping(dataDetails);
     }
 
 
     private CompletionStage<BinaryDataDetails> getMappingById(UUID id) {
-        return dbClient.execute(exec -> exec.createGet("SELECT id, file_name, offset, size FROM object_mapping WHERE id = ?").
-                addParam(id).
-                execute())
-            .thenApply(maybeRow -> maybeRow.map(dbRow -> {
-                UUID idFromDb = UUID.fromString(dbRow.column("id").as(String.class));
-                String fileName = dbRow.column("file_name").as(String.class);
-                long offset = (long)dbRow.column("offset").as(Integer.class);
-                Integer size = dbRow.column("size").as(Integer.class);
-                return new BinaryDataDetails(idFromDb, fileName, offset, size);
-            }).orElseThrow());
+        return dao.getMappingById(id);
     }
 
-
-    private static final class BinaryDataDetails {
-
-        final UUID id;
-
-        final String fileName;
-
-        final long offset;
-        final int size;
-
-        BinaryDataDetails(UUID id, String fileName, long offset, int size) {
-            this.id = id;
-            this.fileName = fileName;
-            this.offset = offset;
-            this.size = size;
-        }
-    }
 }

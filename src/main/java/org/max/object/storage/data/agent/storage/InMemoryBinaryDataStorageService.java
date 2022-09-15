@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,17 +19,17 @@ public class InMemoryBinaryDataStorageService implements BinaryDataStorageServic
 
 
     @Override
-    public UUID saveData(byte[] binaryData) {
+    public CompletionStage<UUID> saveData(byte[] binaryData) {
         UUID id = UUID.randomUUID();
         fileData.put(id, binaryData);
 
         LOG.info("Binary data {} bytes save with ID {}", binaryData.length, id);
 
-        return id;
+        return CompletableFuture.completedFuture(id);
     }
 
     @Override
-    public Optional<byte[]> getBinaryData(UUID id) {
-        return Optional.ofNullable(fileData.get(id));
+    public CompletionStage<Optional<byte[]>> getBinaryData(UUID id) {
+        return  CompletableFuture.completedFuture(Optional.ofNullable(fileData.get(id)));
     }
 }
