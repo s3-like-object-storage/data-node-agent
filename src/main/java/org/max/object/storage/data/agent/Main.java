@@ -1,6 +1,7 @@
 package org.max.object.storage.data.agent;
 
 
+
 import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
 import io.helidon.dbclient.DbClient;
@@ -12,12 +13,15 @@ import io.helidon.webserver.Routing;
 import io.helidon.webserver.WebServer;
 import io.helidon.webserver.accesslog.AccessLogSupport;
 import java.lang.invoke.MethodHandles;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.logging.LogManager;
 import org.max.object.storage.data.agent.api.DataController;
 import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
 import org.max.object.storage.data.agent.storage.DataStorageServiceFactory;
-import org.max.object.storage.data.agent.storage.ObjectMappingDao;
+import org.max.object.storage.data.agent.storage.file.AppendFile;
+import org.max.object.storage.data.agent.storage.sqlite.AppendFileDao;
+import org.max.object.storage.data.agent.storage.sqlite.ObjectMappingDao;
 import org.max.object.storage.data.agent.util.ReactiveUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +71,9 @@ public final class Main {
         // By default this will pick up application.yaml from the classpath
         Config config = Config.create();
 
+        // prepare DB
+        initDBAndWait(createDbClient(config));
+
         WebServer server =
             WebServer.builder(createRouting(config)).config(config.get("server")).addMediaSupport(JacksonSupport.create())
                 .build();
@@ -97,14 +104,18 @@ public final class Main {
      */
     private static Routing createRouting(Config config) {
 
-        // DB layer
         final DbClient dbClient = createDbClient(config);
-        final ObjectMappingDao objectMappingDao = new ObjectMappingDao(dbClient);
 
-        initDBAndWait(dbClient);
+        // DB layer
+        final ObjectMappingDao objectMappingDao = new ObjectMappingDao(dbClient);
+        final AppendFileDao appendFileDao = new AppendFileDao(dbClient);
+
+        // file storage layer
+        final AppendFile appendFile = AppendFile.create(appendFileDao, config);
 
         // Services
-        final BinaryDataStorageService storageService = DataStorageServiceFactory.newInstance(objectMappingDao, config);
+        final BinaryDataStorageService storageService = DataStorageServiceFactory.newInstance(objectMappingDao, appendFile,
+                                                                                              config);
 
         // Controllers
         final DataController dataController = new DataController(storageService);
@@ -138,12 +149,25 @@ public final class Main {
         "CREATE TABLE IF NOT EXISTS object_mapping(id CHAR(36) PRIMARY KEY, file_name VARCHAR(64), " +
             "offset INTEGER, size INTEGER)";
 
+    private static final String CREATE_FILE_APPEND_DDL =
+        "CREATE TABLE IF NOT EXISTS append_file(id INTEGER PRIMARY KEY, file_path VARCHAR(256))";
+
     public static void initDBAndWait(DbClient dbClient) {
-        CompletionStage<Void> completionStage = dbClient.inTransaction(
-                tx -> tx.createDmlStatement(CREATE_OBJECT_MAPPING_DDL).execute()).
-            thenAccept(t -> LOG.info("DB created properly")).
+        CompletionStage<Void> completionStage1 = dbClient.inTransaction(
+                tx -> tx.createDmlStatement(CREATE_OBJECT_MAPPING_DDL).execute()
+            ).
+            thenAccept(t -> LOG.info("DDL <== table 'object_mapping' created")).
             exceptionallyAccept(ex -> LOG.error("Can't create DB", ex));
 
-        ReactiveUtils.waitForStageCompletion(completionStage);
+        ReactiveUtils.waitForStageCompletion(completionStage1);
+
+        CompletionStage<Void> completionStage2 = dbClient.inTransaction(
+                tx -> tx.createDmlStatement(CREATE_FILE_APPEND_DDL).execute()
+            ).
+            thenAccept(t -> LOG.info("DDL <== table 'file_append' created")).
+            exceptionallyAccept(ex -> LOG.error("Can't create DB", ex));
+
+
+        ReactiveUtils.waitForStageCompletion(completionStage2);
     }
 }

@@ -1,10 +1,11 @@
-package org.max.object.storage.data.agent.storage;
+package org.max.object.storage.data.agent.storage.sqlite;
 
 import io.helidon.dbclient.DbClient;
 import io.helidon.dbclient.DbRow;
 import java.lang.invoke.MethodHandles;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
+import org.max.object.storage.data.agent.storage.BinaryDataDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
