@@ -76,11 +76,10 @@ public final class Main {
         // Try to start the server. If successful, print some info and arrange to
         // print a message at shutdown. If unsuccessful, print the exception.
         webserver.thenAccept(ws -> {
-            LOG.info("WEB server is up and running at {}", serverUrl(ws));
-            ws.whenShutdown().thenRun(() -> LOG.info("WEB server is DOWN."));
-        }).exceptionallyAccept(ex -> {
-            LOG.error("Startup failed: " + ex.getMessage(), ex);
-        });
+                LOG.info("WEB server is up and running at {}", serverUrl(ws));
+                ws.whenShutdown().thenRun(() -> LOG.info("WEB server is DOWN."));
+            }).
+            exceptionallyAccept(ex -> LOG.error("Startup failed: " + ex.getMessage(), ex));
 
         return webserver;
     }
@@ -110,20 +109,22 @@ public final class Main {
         // Controllers
         final DataController dataController = new DataController(storageService);
 
+        // Health at "/health"
         final HealthSupport health =
             HealthSupport.builder().addLiveness(HealthChecks.healthChecks()) // Adds a convenient set of checks
                 .build();
 
+        // Metrics at "/metrics"
         final MetricsSupport metrics = MetricsSupport.create();
 
         // Utility like
         final AccessLogSupport accessLog = AccessLogSupport.create(config.get("server.access-log"));
 
         final Routing.Builder builder = Routing.builder().
-            register(metrics). // Metrics at "/metrics"
-                register(health). // Health at "/health"
-                register(accessLog).
-            register("/data", dataController);
+            register(metrics).
+            register(health).
+            register(accessLog).
+            register(DataController.BASE_URL, dataController);
 
         return builder.build();
     }
@@ -133,18 +134,16 @@ public final class Main {
         return DbClient.builder(dbConfig).build();
     }
 
+    private static final String CREATE_OBJECT_MAPPING_DDL =
+        "CREATE TABLE IF NOT EXISTS object_mapping(id CHAR(36) PRIMARY KEY, file_name VARCHAR(64), " +
+            "offset INTEGER, size INTEGER)";
+
     public static void initDBAndWait(DbClient dbClient) {
         CompletionStage<Void> completionStage = dbClient.inTransaction(
-                tx -> tx.createDmlStatement("CREATE TABLE IF NOT EXISTS object_mapping(id CHAR(36) PRIMARY KEY, file_name VARCHAR(64), " +
-                                                "offset INTEGER, size INTEGER)").execute()).
-            thenAccept(t -> {
-                LOG.info("DB created properly");
-            }).
+                tx -> tx.createDmlStatement(CREATE_OBJECT_MAPPING_DDL).execute()).
+            thenAccept(t -> LOG.info("DB created properly")).
             exceptionallyAccept(ex -> LOG.error("Can't create DB", ex));
 
         ReactiveUtils.waitForStageCompletion(completionStage);
-
     }
-
-
 }

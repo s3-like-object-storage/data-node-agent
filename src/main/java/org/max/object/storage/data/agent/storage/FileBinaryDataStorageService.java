@@ -71,28 +71,22 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
 
     @Override
     public CompletionStage<Optional<byte[]>> getBinaryData(UUID id) {
-        try {
-            //TODO: blocking wait here, bad practice !!!
-            BinaryDataDetails details = dao.getMappingById(id).toCompletableFuture().get();
-            if (details == null) {
-                return CompletableFuture.completedFuture(Optional.empty());
-            }
-
-            try {
-                try (RandomAccessFile readFile = new RandomAccessFile(details.fileName, "r")) {
-                    byte[] buf = new byte[details.size];
-                    readFile.seek(details.offset);
-                    readFile.read(buf);
-                    return CompletableFuture.completedFuture(Optional.of(buf));
+        return dao.getMappingById(id).
+            thenApply(details -> {
+                if (details == null) {
+                    return Optional.empty();
                 }
-            }
-            catch (IOException ioEx) {
-                throw new IllegalStateException(ioEx);
-            }
-        }
-        catch (Exception ex) {
-            LOG.error(ex.getMessage(), ex);
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
+                try {
+                    try (RandomAccessFile readFile = new RandomAccessFile(details.fileName, "r")) {
+                        byte[] buf = new byte[details.size];
+                        readFile.seek(details.offset);
+                        readFile.read(buf);
+                        return Optional.of(buf);
+                    }
+                }
+                catch (IOException ioEx) {
+                    throw new IllegalStateException(ioEx);
+                }
+            });
     }
 }

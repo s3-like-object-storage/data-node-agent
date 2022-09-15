@@ -16,6 +16,8 @@ import org.max.object.storage.data.agent.domain.BinaryDataStorageService;
  */
 public class DataController implements Service {
 
+    public static final String BASE_URL = "/data";
+
     private final BinaryDataStorageService storageService;
 
     public DataController(BinaryDataStorageService storageService) {

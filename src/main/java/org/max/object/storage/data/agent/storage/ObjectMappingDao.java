@@ -39,7 +39,7 @@ public class ObjectMappingDao {
                 addParam(id).
                 execute())
             .thenApply(maybeRow -> maybeRow.map(ObjectMappingDao::toDto).
-                orElseThrow());
+                orElse(null));
     }
 
     private static BinaryDataDetails toDto(DbRow dbRow) {
