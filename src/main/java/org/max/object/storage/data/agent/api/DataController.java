@@ -33,22 +33,8 @@ public class DataController implements Service {
     public void update(Routing.Rules rules) {
         rules
             .post("/", this::uploadData)
-            .get("/{id}", this::getDataById);
-    }
-
-    /**
-     * Get binary data content by ID.
-     */
-    private void getDataById(ServerRequest request, ServerResponse response) {
-        CompletableFuture.completedFuture(UUID.fromString(request.path().param("id"))).
-            thenCompose(storageService::getBinaryData).
-            thenCompose(maybeBinaryData -> {
-                if (maybeBinaryData.isEmpty()) {
-                    return response.send(Http.Status.NOT_FOUND_404);
-                }
-                response.headers().contentType(MediaType.APPLICATION_OCTET_STREAM);
-                return response.status(Http.Status.OK_200).send(maybeBinaryData.get());
-            });
+            .get("/{id}", this::getDataById)
+            .delete("/{id}", this::deleteById);
     }
 
     /**
@@ -57,9 +43,37 @@ public class DataController implements Service {
     private void uploadData(ServerRequest request, ServerResponse response) {
         request.content().as(byte[].class).
             thenCompose(storageService::saveData).
-            thenCompose(generatedId -> {
+            thenAccept(generatedId -> {
                 response.headers().location(URI.create("data/" + generatedId.toString()));
-                return response.status(Http.Status.CREATED_201).send();
+                response.status(Http.Status.CREATED_201).send();
             });
     }
+
+    /**
+     * Get binary data content by ID.
+     */
+    private void getDataById(ServerRequest request, ServerResponse response) {
+        CompletableFuture.completedFuture(UUID.fromString(request.path().param("id"))).
+            thenCompose(storageService::getBinaryData).
+            thenAccept(maybeBinaryData -> {
+                if (maybeBinaryData.isEmpty()) {
+                    response.send(Http.Status.NOT_FOUND_404);
+                }
+                response.headers().contentType(MediaType.APPLICATION_OCTET_STREAM);
+                response.status(Http.Status.OK_200).send(maybeBinaryData.get());
+            });
+    }
+
+    /**
+     * Delete binary data by id.
+     */
+    private void deleteById(ServerRequest request, ServerResponse response) {
+        CompletableFuture.completedFuture(UUID.fromString(request.path().param("id"))).
+            thenAccept(id -> {
+                //TODO: not implemented
+                response.status(Http.Status.NOT_IMPLEMENTED_501).send();
+            });
+    }
+
+
 }

@@ -1,12 +1,8 @@
 package org.max.object.storage.data.agent.storage;
 
-import io.helidon.config.Config;
-import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Path;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -43,7 +39,8 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
                     throw new IllegalStateException(ex);
                 }
             }).
-            thenCompose( id -> dao.insertDbMapping(new BinaryDataDetails(id, appendFile.fileNameAsStr(), appendFile.offset(), binaryData.length))).
+            thenCompose(id -> dao.insertDbMapping(
+                new BinaryDataDetails(id, appendFile.fileNameAsStr(), appendFile.offset(), binaryData.length))).
             thenApply(uuidFromDb -> {
                 appendFile.addToOffset(binaryData.length);
                 LOG.info("ID: {}, size: {} bytes, append file: {}", uuidFromDb, binaryData.length, appendFile.fileNameAsStr());
@@ -54,21 +51,23 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
     @Override
     public CompletionStage<Optional<byte[]>> getBinaryData(UUID id) {
         return dao.getMappingById(id).
-            thenApply(details -> {
-                if (details == null) {
-                    return Optional.empty();
-                }
-                try {
-                    try (RandomAccessFile readFile = new RandomAccessFile(details.fileName, "r")) {
-                        byte[] buf = new byte[details.size];
-                        readFile.seek(details.offset);
-                        readFile.read(buf);
-                        return Optional.of(buf);
-                    }
-                }
-                catch (IOException ioEx) {
-                    throw new IllegalStateException(ioEx);
-                }
-            });
+            thenApply(FileBinaryDataStorageService::readChunkFromFile);
+    }
+
+    private static Optional<byte[]> readChunkFromFile(BinaryDataDetails details) {
+        if (details == null) {
+            return Optional.empty();
+        }
+        try {
+            try (RandomAccessFile readFile = new RandomAccessFile(details.fileName, "r")) {
+                byte[] buf = new byte[details.size];
+                readFile.seek(details.offset);
+                readFile.read(buf);
+                return Optional.of(buf);
+            }
+        }
+        catch (IOException ioEx) {
+            throw new IllegalStateException(ioEx);
+        }
     }
 }

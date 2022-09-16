@@ -1,6 +1,7 @@
 
 package org.max.object.storage.data.agent.api;
 
+import io.helidon.common.http.Http;
 import io.helidon.media.jackson.JacksonSupport;
 import io.helidon.webclient.WebClient;
 import io.helidon.webclient.WebClientResponse;
@@ -40,17 +41,16 @@ public class DataControllerTest {
     }
 
     @Test
-    public void uploadFile() {
-
-        WebClientResponse response = webClient.post()
+    public void uploadData() {
+        WebClientResponse uploadResponse = webClient.post()
             .path("/data")
             .submit("hello binary data".getBytes(StandardCharsets.UTF_8))
             .await();
 
-        assertThat(response.status().code()).isEqualTo(201);
-        assertThat(response.headers().value("Location")).isNotEmpty();
+        assertThat(uploadResponse.status()).isEqualTo(Http.Status.CREATED_201);
+        assertThat(uploadResponse.headers().value("Location")).isNotEmpty();
 
-        String binaryDataLocation = response.headers().value("Location").get();
+        String binaryDataLocation = uploadResponse.headers().value("Location").get();
 
         byte[] fileData = webClient.get()
             .path(binaryDataLocation)
@@ -60,5 +60,25 @@ public class DataControllerTest {
         assertThat(fileData).isNotEmpty();
 
         assertThat(new String(fileData)).isEqualTo("hello binary data");
+    }
+
+    @Test
+    public void deleteData() {
+        WebClientResponse uploadResponse = webClient.post().
+            path("/data").
+            submit("some binary data content that will be deleted".getBytes(StandardCharsets.UTF_8)).
+            await();
+
+        assertThat(uploadResponse.status()).isEqualTo(Http.Status.CREATED_201);
+        assertThat(uploadResponse.headers().value("Location")).isNotEmpty();
+
+        String binaryDataLocation = uploadResponse.headers().value("Location").get();
+
+        WebClientResponse deleteResponse = webClient.delete().
+            path(binaryDataLocation).
+            submit().
+            await();
+
+        assertThat(deleteResponse.status()).isEqualTo(Http.Status.NOT_IMPLEMENTED_501);
     }
 }
