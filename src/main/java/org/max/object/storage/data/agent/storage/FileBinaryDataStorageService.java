@@ -30,7 +30,7 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
     @Override
     public CompletionStage<UUID> saveData(byte[] binaryData) {
         return CompletableFuture.completedFuture(UUID.randomUUID()).
-            thenApply(id -> {
+            thenCompose(id -> CompletableFuture.supplyAsync(() -> {
                 try {
                     appendFile.saveBinaryData(binaryData);
                     return id;
@@ -38,7 +38,7 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
                 catch (Exception ex) {
                     throw new IllegalStateException(ex);
                 }
-            }).
+            })).
             thenCompose(id -> dao.insertDbMapping(
                 new BinaryDataDetails(id, appendFile.fileNameAsStr(), appendFile.offset(), binaryData.length))).
             thenApply(uuidFromDb -> {
@@ -51,7 +51,8 @@ public class FileBinaryDataStorageService implements BinaryDataStorageService {
     @Override
     public CompletionStage<Optional<byte[]>> getBinaryData(UUID id) {
         return dao.getMappingById(id).
-            thenApply(FileBinaryDataStorageService::readChunkFromFile);
+            thenCompose(binaryDetails -> CompletableFuture.supplyAsync(
+                () -> FileBinaryDataStorageService.readChunkFromFile(binaryDetails)));
     }
 
     private static Optional<byte[]> readChunkFromFile(BinaryDataDetails details) {
