@@ -1,7 +1,6 @@
 package org.max.object.storage.data.agent;
 
 
-
 import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
 import io.helidon.dbclient.DbClient;
@@ -13,7 +12,6 @@ import io.helidon.webserver.Routing;
 import io.helidon.webserver.WebServer;
 import io.helidon.webserver.accesslog.AccessLogSupport;
 import java.lang.invoke.MethodHandles;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.logging.LogManager;
 import org.max.object.storage.data.agent.api.DataController;

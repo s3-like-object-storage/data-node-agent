@@ -19,6 +19,7 @@
 
         <!-- libs -->
         <assertj.core.version>3.23.1</assertj.core.version>
+        <blockhound.version>1.0.6.RELEASE</blockhound.version>
         <logback.version>1.2.3</logback.version>
         <sl4j.version>1.7.36</sl4j.version>
         <sqlite.jdbc.version>3.39.3.0</sqlite.jdbc.version>

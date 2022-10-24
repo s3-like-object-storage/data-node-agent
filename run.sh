@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # JVM Heap, stack size and GC options
-#export JAVA_OPTS="-XX:+UseParallelGC -XX:MaxRAMPercentage=75 -XX:MaxDirectMemorySize=10M -XX:MaxMetaspaceSize=580078K -XX:ReservedCodeCacheSize=240M -Xss1M -Xmx3096081K"
+#export JAVA_OPTS=""
 
 #
 # Enable remote debugging
